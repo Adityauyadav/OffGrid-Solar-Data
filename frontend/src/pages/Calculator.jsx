@@ -22,6 +22,27 @@ export default function Calculator() {
     }
   };
 
+  const handleDownloadSample = async () => {
+    try {
+      const response = await fetch('/sample_load.csv');
+      const blob = await response.blob();
+      const sampleFile = new File([blob], 'sample_load.csv', { type: 'text/csv' });
+      setFile(sampleFile);
+      
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'sample_load.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading sample file:', error);
+      alert('Failed to load sample file.');
+    }
+  };
+
   const handleLocationClick = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -317,7 +338,14 @@ export default function Calculator() {
                     <p className="text-gray-500 text-xs">Quick start with our template</p>
                   </div>
                 </div>
-                <Button variant="primary" size="sm" className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white border-transparent shadow-lg shadow-emerald-600/20">Download Sample CSV</Button>
+                <Button 
+                  variant="primary" 
+                  size="sm" 
+                  className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white border-transparent shadow-lg shadow-emerald-600/20"
+                  onClick={handleDownloadSample}
+                >
+                  Download Sample CSV
+                </Button>
               </div>
             </div>
           </div>
