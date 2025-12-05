@@ -3,6 +3,7 @@ import io
 
 TARGET_HOURS = 8760
 
+
 def parse_load_file(file_bytes: bytes, filename: str) -> pd.Series:
     name = filename.lower()
 
@@ -14,7 +15,9 @@ def parse_load_file(file_bytes: bytes, filename: str) -> pd.Series:
         raise ValueError("Only CSV or Excel supported")
 
     if df.shape[1] < 2:
-        raise ValueError("File must have at least 2 columns: timestamp and load")
+        raise ValueError(
+            "File must have at least 2 columns: timestamp and load"
+        )
 
     df[0] = pd.to_datetime(df[0], errors="coerce")
     df = df.dropna(subset=[0])
