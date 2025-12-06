@@ -3,6 +3,10 @@ from fastapi import FastAPI
 from app.api.endpoints import router as api_router
 from fastapi.middleware.cors import CORSMiddleware
 
+origins = [
+    "https://offgridcalc.vercel.app",
+]
+
 
 app = FastAPI()
 
