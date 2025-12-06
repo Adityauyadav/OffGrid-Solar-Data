@@ -99,38 +99,92 @@ export default function Documentation() {
                 </div>
                 <h2 className="font-instrument text-3xl">Optimization Logic</h2>
               </div>
-              <div className="space-y-6 text-gray-600">
+              
+              <div className="space-y-8 text-gray-600">
                 <p>
-                  The core engine uses a "Pinch Point Analysis" approach adapted for battery sizing. The goal is to find the 
-                  <strong> Lowest Cost Combination</strong> of PV and Battery that satisfies the load 100% of the time.
+                  The engine uses a rigorous iterative simulation to determine the optimal system configuration. 
+                  Below is the concrete mathematical model used in the backend.
                 </p>
-                
-                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                  <h4 className="font-bold text-gray-900 mb-4">The Algorithm Step-by-Step:</h4>
-                  <ol className="list-decimal list-inside space-y-3 marker:text-emerald-600 marker:font-bold">
-                    <li>
-                      <strong>PV Iteration:</strong> The engine tests a range of PV array sizes (from 0 kW up to a large upper bound).
-                    </li>
-                    <li>
-                      <strong>Net Load Calculation:</strong> For each hour $t$, we calculate:
-                      <br />
-                      <code className="bg-gray-100 px-2 py-1 rounded text-sm mt-2 inline-block">Net_Load(t) = Load(t) - (PV_Size × Solar_Irradiance(t))</code>
-                    </li>
-                    <li>
-                      <strong>Battery Sizing (The "Survives" Check):</strong> For a fixed PV size, we calculate the minimum battery capacity required 
-                      to ensure the State of Charge (SoC) never drops below zero. This is done by simulating the cumulative energy balance 
-                      and finding the maximum deficit.
-                    </li>
-                    <li>
-                      <strong>Cost Minimization:</strong> We calculate the Total System Cost for every valid (PV, Battery) pair:
-                      <br />
-                      <code className="bg-gray-100 px-2 py-1 rounded text-sm mt-2 inline-block">Cost = (PV_Size × PV_Cost) + (Battery_Size × Battery_Cost)</code>
-                    </li>
-                    <li>
-                      <strong>Selection:</strong> The pair with the global minimum cost is selected as the optimal configuration.
-                    </li>
-                  </ol>
+
+                {/* Definitions */}
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg mb-3">1. Definitions</h3>
+                  <ul className="list-disc list-inside space-y-2 bg-gray-50 p-6 rounded-xl border border-gray-100 font-mono text-sm">
+                    <li><span className="font-bold text-purple-700">load[t]</span> : Demand time series (kW)</li>
+                    <li><span className="font-bold text-purple-700">solar[t]</span> : Solar irradiance or normalized generation time series</li>
+                    <li><span className="font-bold text-purple-700">pv</span> : Scaling factor for solar generation (kW)</li>
+                    <li><span className="font-bold text-purple-700">battery</span> : Energy storage capacity (kWh)</li>
+                    <li><span className="font-bold text-purple-700">soc[t]</span> : State of charge at time t (kWh)</li>
+                  </ul>
                 </div>
+
+                {/* Core Model */}
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg mb-3">2. Core Feasibility Model</h3>
+                  <p className="mb-4">
+                    The system state evolves according to the energy balance equation:
+                  </p>
+                  <div className="bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm overflow-x-auto">
+                    net[t] = (pv * solar[t]) - load[t]<br/>
+                    soc[t] = min(battery, max(0, soc[t-1] + net[t]))
+                  </div>
+                  <p className="mt-4">
+                    A configuration <code>(pv, battery)</code> is considered <strong>feasible</strong> if and only if
+                    <code> soc[t]</code> never drops below 0 for any timestep <code>t</code> in the simulation period (8760 hours).
+                    The function <code>survives(load, solar, pv, battery)</code> executes this check.
+                  </p>
+                </div>
+
+                {/* Battery Search */}
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg mb-3">3. Battery Search (Binary Search)</h3>
+                  <p className="mb-4">
+                    For a fixed PV size, we find the minimum battery capacity required using a binary search algorithm.
+                    This is computationally efficient and precise.
+                  </p>
+                  <ul className="list-decimal list-inside space-y-2 ml-2">
+                    <li><strong>Pre-check:</strong> If <code>Σ(net[t]) &lt; 0</code>, the PV size is insufficient to cover the total annual load. The candidate is discarded immediately.</li>
+                    <li><strong>Search Interval:</strong> <code>[0, Σ(load)]</code>.</li>
+                    <li><strong>Halting Threshold:</strong> The search stops when the interval size is less than 1.0 kWh.</li>
+                    <li><strong>Logic:</strong> At each step <code>mid</code>, we check <code>survives(..., mid)</code>.
+                      <ul className="list-disc list-inside ml-6 mt-1 text-sm text-gray-500">
+                        <li>If feasible: Try smaller battery (search lower half).</li>
+                        <li>If infeasible: Need larger battery (search upper half).</li>
+                      </ul>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* PV Search */}
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg mb-3">4. PV Search (Linear Grid)</h3>
+                  <p className="mb-4">
+                    The engine explores a range of PV sizes to find the global optimum.
+                  </p>
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-100 text-sm">
+                    <p className="font-mono mb-2"><strong>Initial Estimate:</strong> start_pv = mean(load) / mean(solar)</p>
+                    <p className="font-mono mb-2"><strong>Search Space:</strong> [start_pv, 5 * start_pv]</p>
+                    <p className="font-mono"><strong>Resolution:</strong> 100 uniformly spaced samples</p>
+                  </div>
+                  <p className="mt-4">
+                    For each PV candidate, we calculate the minimal feasible battery. If no battery size works (e.g., due to energy deficit), that PV size is discarded.
+                  </p>
+                </div>
+
+                {/* Cost Optimization */}
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg mb-3">5. Cost Optimization</h3>
+                  <p className="mb-4">
+                    Among all feasible <code>(pv, battery)</code> pairs, we select the one that minimizes the total system cost function:
+                  </p>
+                  <div className="bg-emerald-50 text-emerald-900 p-4 rounded-lg font-mono text-sm border border-emerald-100">
+                    C(pv, battery) = (pv * pv_cost) + (battery * battery_cost)
+                  </div>
+                  <p className="mt-4 text-sm text-gray-500">
+                    * pv_cost and battery_cost are user-provided economic weights (defaulting to 1 for PV and 0.5 for Battery as a ratio).
+                  </p>
+                </div>
+
               </div>
             </section>
 
