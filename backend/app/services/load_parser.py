@@ -19,7 +19,7 @@ def parse_load_file(file_bytes: bytes, filename: str) -> pd.Series:
             "File must have at least 2 columns: timestamp and load"
         )
 
-    df[0] = pd.to_datetime(df[0], errors="coerce")
+    df[0] = pd.to_datetime(df[0], format="%Y-%m-%d %H:%M:%S", errors="coerce")
     df = df.dropna(subset=[0])
     df = df.set_index(0).sort_index()
 
