@@ -19,9 +19,9 @@ def engine(
     avg_solar = float(np.mean(solar))
 
     start_pv = avg_load / avg_solar
-    end_pv = start_pv * 8.0
+    end_pv = start_pv * 5.0
 
-    pv_candidates = np.linspace(start_pv, end_pv, 40)
+    pv_candidates = np.linspace(start_pv, end_pv, 100)
 
     valid_pairs = []
 
